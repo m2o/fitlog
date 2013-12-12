@@ -1,0 +1,265 @@
+{% extends 'base.html' %} 
+
+{% block head %}
+    <script type="text/javascript">
+		
+		function showTooltip(x, y, contents) {
+			$('<div id="tooltip">' + contents + '</div>').css( {
+				position: 'absolute',
+				display: 'none',
+				top: y + 15,
+				left: x + 15,
+				border: '1px solid #fdd',
+				padding: '2px',
+				'background-color': '#fee',
+				opacity: 0.80
+			}).appendTo("body").fadeIn(200);
+		}
+		
+		function graph(outerDiv,options){
+		
+		    var defaultOptions = {'granularity':{'day':'day','week':'week','month':'month','year':'year'},
+					   'granularityDefault':'week',
+					   'type':{'distance':'distance','time':'time'},
+					   'typeDefault':'distance'
+					    };
+					   
+		    for(var val in options) {
+			defaultOptions[val]=options[val]
+		    }		
+		    options = defaultOptions;
+		    
+		    /*granularity*/
+		    var granularityData = options['granularity'];
+		    var granularitySelect = null;		    
+		    
+		    if(granularityData!=null){		    
+			var granularitySelect = $("<select/>");
+			for(var val in granularityData) {
+			    $("<option />", {value: val, text: granularityData[val]}).appendTo(granularitySelect);
+			}
+			granularitySelect.appendTo(outerDiv)
+			
+			var granularityDefault = options['granularityDefault'];
+			if(granularityDefault!=null){
+			    granularitySelect.val(granularityDefault);
+			}
+		    }
+		    
+		    /*type*/
+		    var typeData = options['type'];
+		    var typeSelect = null;		    
+		    
+		    if(typeData!=null){		    
+			var typeSelect = $("<select/>");
+			for(var val in typeData) {
+			    $("<option />", {value: val, text: typeData[val]}).appendTo(typeSelect);
+			}
+			typeSelect.appendTo(outerDiv)
+			
+			var typeDefault = options['typeDefault'];
+			if(typeDefault!=null){
+			    typeSelect.val(typeDefault);
+			}
+		    }
+		    
+		    var summaryDiv =  $("<div/>");
+		    summaryDiv.appendTo(outerDiv);
+
+		    var div =  $("<div/>");
+		    div.width(900);
+		    div.height(500);
+		    div.appendTo(outerDiv);
+		    	
+		    function _refreshGraph(){
+			
+			summaryDiv.html('')
+			var params = {};
+			if(granularitySelect!=null){
+			    params['granularity'] = granularitySelect.val();
+			}
+			if(typeSelect!=null){
+			    params['type'] = typeSelect.val();
+			}
+			
+			$.getJSON(options.url,params,function(data) {
+    
+				console.log(data.data);
+				console.log(data.options);
+				console.log(data.summary);
+				
+				for(var val in data.summary) {
+				    $('<p>'+val+':'+data.summary[val]+'</p>').appendTo(summaryDiv);
+				}
+    
+				var plot = $.plot(div,data.data,data.options);
+				
+				var previousPoint = null;
+				
+				div.bind("plothover", function (event, pos, item) {
+					if (item) {
+						if (previousPoint != item.dataIndex) {
+							previousPoint = item.dataIndex;
+							
+							$("#tooltip").remove();
+							//var x = item.datapoint[0].toFixed(2);
+							//var y = item.datapoint[1].toFixed(2);
+							
+							tooltip = item.series.data[item.dataIndex][2].tooltip
+							showTooltip(item.pageX,item.pageY,tooltip);
+						}
+					}else {
+						$("#tooltip").remove();
+						previousPoint = null;            
+					}
+				});
+			});
+		    }
+		    
+		    if(granularitySelect!=null){
+			granularitySelect.change(_refreshGraph);
+		    }
+		    if(typeSelect!=null){
+			typeSelect.change(_refreshGraph);
+		    }
+		    
+		    _refreshGraph();
+		}
+    
+        $(document).ready(function() {
+        
+            var dlg = $("#dialog").dialog({
+                    autoOpen: false,
+                    draggable: false,
+                    resizable: false,
+                    width: 500
+                  });
+           
+            $('#dash').fullCalendar({
+                firstDay:1,
+                aspectRatio:2,
+                events: '/ajax/events/calendar/data',
+                eventMouseover:function(event, jsEvent, view) {
+                    dlg.html(event.dialogstr);
+                    dlg.dialog('option','title',event.title);
+                    dlg.dialog("open");
+                },
+                eventMouseout:function(event) {
+                    dlg.dialog("close");
+                }
+            });
+           
+          $('#dash').mousemove(function(event) {
+                      dlg.dialog("option", "position", {
+						  my: "left top",
+						  at: "right bottom",
+						  of: event,
+						  offset: "20 20"});
+           });
+           
+           graph($('#graph_summary'),{'url':'/ajax/graph/summary'});
+           graph($('#graph_event'),{'url':'/ajax/graph/event','granularity':null,'type':null});
+           
+         });     
+    </script>
+{% endblock %}
+
+{% block body %}
+
+    {% load fitlogapp_extras %}
+    
+	  <div id="dialog" title="jQuery UI Dialog" style="display:none">
+		<p>positioned relative to mousemove event, using the position utility</p>
+		<code><pre>.dialog({
+		  position: {
+			my: 'left',
+			at: 'right',
+			of: event
+		  }
+		});</pre></code>
+	  </div>  
+    
+    <p>summary:</p>
+    {% for k,v in summary_dict.items %}
+        <p>{{k}} - {{v|prettysummarydict}}</p>
+    {% endfor %}
+
+    <hr/>
+    <p>dashboard:</p>
+    
+    <div id="dash" style="width:75%" />    
+    
+    <hr/>
+    <p>summary graph:</p>
+	<div id="graph_summary" ></div>
+    
+    <hr/>
+    <p>event graph:</p>
+	<div id="graph_event" ></div>
+
+    <hr/>
+    <p>events:</p>
+    {% if event_list %}
+        <table>
+            <tr>
+                <th>date</th>
+                <th>route</th>
+                <th>distance</th>
+                <th>duration</th>
+                <th>pace</th>
+                <th>tags</th>
+                <th></th>
+                <th></th>
+            </tr>
+            {% for event in event_list %}
+                <tr>
+                    <td>{{ event.date }}</td>
+                    <td>{{ event.route|default:"-"}}</td>
+                    <td>{{ event.distance|prettydistance|default:"-"}}</td>
+                    <td>{{ event.duration|prettyduration}}</td>
+                    <td>{{ event.pace|prettypace|default:"-"}}</td>
+                    <td>
+                        {% for tag in event.tagstrs %}
+                            {{ tag }}
+                        {% endfor %}
+                    </td>
+                    <td>
+                        <form action="/events/edit" method="get">
+                            <input type="hidden" name="id" value="{{ event.pk }}"/>
+                            <input type="submit" value="edit" />
+                        </form>
+                    </td>
+                    <td>
+                        <form action="/events/delete" method="post">
+                            {% csrf_token %}
+                            <input type="hidden" name="id" value="{{ event.pk }}"/>
+                            <input type="submit" value="delete" />
+                        </form>
+                    </td>
+                </tr>
+            {% endfor %}
+        </table>
+    {% else %}
+        <p>No events are available.</p>
+    {% endif %}
+    
+    {% if event_add_form%}
+        <p>new event:</p>
+        <form action="/events/add" method="post">
+            {% csrf_token %}
+            {{ event_add_form.as_p }}
+            <input type="submit" value="add" />
+        </form>
+    {% endif %}
+    
+    {% if event_edit_form%}
+        <p>edit event:</p>
+        <form action="/events/edit" method="post">
+            {% csrf_token %}
+            {{ event_edit_form.as_p }}
+            <input type="hidden" name="id" value="{{ event_edit_form.instance.pk }}"/>
+            <input type="submit" value="edit" />
+        </form>
+    {% endif %}
+
+{% endblock %}

@@ -1,0 +1,66 @@
+{% extends 'base.html' %} 
+
+{% block body %}
+
+    {% load fitlogapp_extras %}
+
+    <p>routes:</p>
+    {% if route_list %}
+        <table>
+            <tr>
+                <th>name</th>
+                <th>distance </th>
+                <th>elevation </th>
+                <th>tags</th>
+                <th>#</th>
+                <th></th>
+                <th></th>
+            </tr>
+            {% for route in route_list %}
+                <tr>
+                    <td><a href="/routes/detail?id={{route.pk}}">{{ route.name }}</a></td>
+                    <td>{{ route.distance|prettydistance|default:"-" }}</td>
+                    <td>{{ route.elevation|prettydistance|default:"-" }}</td>
+                    <td>{{ route.tagstrs }}</td>
+                    <td>{{ route.events_count }}</td>
+                    <td>
+                        <form action="/routes/edit" method="get">
+                            <input type="hidden" name="id" value="{{ route.pk }}"/>
+                            <input type="submit" value="edit" />
+                        </form>
+                    </td>
+                    <td>
+                        <form action="/routes/delete" method="post">
+                            {% csrf_token %}
+                            <input type="hidden" name="id" value="{{ route.pk }}"/>
+                            <input type="submit" value="delete" />
+                        </form>
+                    </td>
+                </tr>
+            {% endfor %}
+        </table>
+        
+    {% else %}
+        <p>No routes are available.</p>
+    {% endif %}
+    
+    {% if route_add_form%}
+        <p>new route:</p>
+        <form action="/routes/add" method="post">
+            {% csrf_token %}
+            {{ route_add_form.as_p }}
+            <input type="submit" value="add" />
+        </form>
+    {% endif %}
+    
+    {% if route_edit_form%}
+        <p>edit route:</p>
+        <form action="/routes/edit" method="post">
+            {% csrf_token %}
+            {{ route_edit_form.as_p }}
+            <input type="hidden" name="id" value="{{ route_edit_form.instance.pk }}"/>
+            <input type="submit" value="edit" />
+        </form>
+    {% endif %}
+    
+{% endblock %}

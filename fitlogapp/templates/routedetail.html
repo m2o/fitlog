@@ -1,0 +1,53 @@
+{% extends 'base.html' %} 
+
+{% block body %}
+
+    {% load fitlogapp_extras %}
+
+    <p> name: {{ route.name }} </p>
+    <p> distance: {{ route.distance|prettydistance}} </p>
+  
+    <p>events:</p>
+    {% if event_list %}
+        <table>
+            <tr>
+                <th>date</th>
+                <th>duration</th>
+                <th>pace</th>
+                <th>tags</th>
+                <th></th>
+                <th></th>
+                <th></th>
+            </tr>
+            {% for event in event_list %}
+                    <tr {% if event.n < 6 %}style="font-weight: bold" {% endif %} >
+                        <td>{{ event.date }}</td>
+                        <td>{{ event.duration|prettyduration}}</td>
+                        <td>{{ event.pace|prettypace|default:"-"}}</td>
+                        <td>
+                            {% for tag in event.tagstrs %}
+                                {{ tag }}
+                            {% endfor %}
+                        </td>
+                        <td>{% if event.n < 6 %}{{event.n}}.{% endif %}</td>
+                        <td>
+                            <form action="/events/edit" method="get">
+                                <input type="hidden" name="id" value="{{ event.pk }}"/>
+                                <input type="submit" value="edit" />
+                            </form>
+                        </td>
+                        <td>
+                            <form action="/events/delete" method="post">
+                                {% csrf_token %}
+                                <input type="hidden" name="id" value="{{ event.pk }}"/>
+                                <input type="submit" value="delete" />
+                            </form>
+                        </td>
+                    </tr>
+            {% endfor %}
+        </table>
+    {% else %}
+        <p>No events!</p>
+    {% endif %}
+    
+{% endblock %}
